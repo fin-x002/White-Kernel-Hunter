@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+import sys
+import os
+
+def check_virtual_env():
+    if os.getenv('REPL_ID') or os.getenv('REPLIT_DB_URL'):
+        return
+    
+    if not hasattr(sys, 'real_prefix') and not (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+        try:
+            from colorama import Fore, Style, init
+            init(autoreset=True)
+            print(Fore.RED + "Error: Please run this tool inside a virtual environment!" + Style.RESET_ALL)
+        except ImportError:
+            print("Error: Please run this tool inside a virtual environment!")
+        sys.exit(1)
+
+check_virtual_env()
+
+try:
+    import socket
+    import threading
+    import requests
+    from colorama import Fore, Style, Back, init
+    import time
+    from queue import Queue
+except ImportError as e:
+    print(f"Error: Missing required library - {e.name}")
+    print("Please run: pip install -r requirements.txt")
+    sys.exit(1)
+
+init(autoreset=True)
+
+def clear_screen():
+    os.system('clear' if os.name != 'nt' else 'cls')
+
+def display_banner():
+    clear_screen()
+    banner = f"""
+{Fore.CYAN}╔═══════════════════════════════════════════════╗
+║             White Kernel Hunter               ║
+║         Advanced Reconnaissance Tool          ║
+║             Leader: Babu & Mezushi            ║
+╚═══════════════════════════════════════════════╝{Style.RESET_ALL}
+"""
+    print(banner)
+
+class PortScanner:
+    def __init__(self, target, start_port, end_port, threads=100):
+        self.target = target
+        self.start_port = start_port
+        self.end_port = end_port
+        self.threads = threads
+        self.queue = Queue()
+        self.open_ports = []
+        self.lock = threading.Lock()
+        
+    def grab_banner(self, port):
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            sock.connect((self.target, port))
+            
+            try:
+                sock.send(b'\r\n')
+            except:
+                pass
+            
+            try:
+                banner = sock.recv(1024).decode('utf-8', errors='ignore').strip()
+                sock.close()
+                return banner if banner else "Unknown Service"
+            except:
+                sock.close()
+                return "Unknown Service"
+        except:
+            return None
+    
+    def scan_port(self):
+        while not self.queue.empty():
+            port = self.queue.get()
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(1)
+                result = sock.connect_ex((self.target, port))
+                
+                if result == 0:
+                    banner = self.grab_banner(port)
+                    if banner:
+                        with self.lock:
+                            self.open_ports.append((port, banner))
+                            print(Fore.GREEN + f"[+] Port {port} Open : {banner}")
+                
+                sock.close()
+            except:
+                pass
+            finally:
+                self.queue.task_done()
+    
+    def run(self):
+        print(Fore.YELLOW + f"\n[*] Starting scan on {self.target}")
+        print(Fore.YELLOW + f"[*] Scanning ports {self.start_port}-{self.end_port}...")
+        print(Fore.YELLOW + f"[*] Using {self.threads} threads\n")
+        
+        for port in range(self.start_port, self.end_port + 1):
+            self.queue.put(port)
+        
+        thread_list = []
+        for _ in range(self.threads):
+            thread = threading.Thread(target=self.scan_port)
+            thread.daemon = True
+            thread.start()
+            thread_list.append(thread)
+        
+        for thread in thread_list:
+            thread.join()
+        
+        print(Fore.CYAN + f"\n[*] Scan completed! Found {len(self.open_ports)} open ports.")
+
+class SubdomainScanner:
+    def __init__(self, domain):
+        self.domain = domain
+        self.subdomains = [
+            'www', 'mail', 'remote', 'blog', 'webmail', 'server',
+            'admin', 'ftp', 'smtp', 'pop', 'ns1', 'ns2', 'test',
+            'vpn', 'api', 'dev', 'staging', 'portal', 'app',
+            'dashboard', 'cpanel', 'whm', 'shop', 'store'
+        ]
+        self.found = []
+    
+    def check_subdomain(self, subdomain):
+        url = f"http://{subdomain}.{self.domain}"
+        try:
+            response = requests.get(url, timeout=3, allow_redirects=True)
+            if response.status_code in [200, 403, 301, 302]:
+                self.found.append(subdomain)
+                print(Fore.GREEN + f"[+] Found: {subdomain}.{self.domain} (Status: {response.status_code})")
+        except:
+            pass
+    
+    def run(self):
+        print(Fore.YELLOW + f"\n[*] Starting subdomain enumeration for {self.domain}")
+        print(Fore.YELLOW + f"[*] Testing {len(self.subdomains)} common subdomains...\n")
+        
+        threads = []
+        for subdomain in self.subdomains:
+            thread = threading.Thread(target=self.check_subdomain, args=(subdomain,))
+            thread.daemon = True
+            thread.start()
+            threads.append(thread)
+        
+        for thread in threads:
+            thread.join()
+        
+        print(Fore.CYAN + f"\n[*] Scan completed! Found {len(self.found)} subdomains.")
+
+def port_scanner_menu():
+    print(Fore.YELLOW + "\n=== Advanced Port Scanner ===")
+    target = input(Fore.WHITE + "Enter Target IP/Domain: ").strip()
+    
+    if not target:
+        print(Fore.RED + "[!] Target cannot be empty!")
+        return
+    
+    try:
+        target_ip = socket.gethostbyname(target)
+        print(Fore.CYAN + f"[*] Resolved {target} to {target_ip}")
+    except socket.gaierror:
+        print(Fore.RED + f"[!] Could not resolve hostname: {target}")
+        return
+    
+    try:
+        start_port = int(input(Fore.WHITE + "Enter Start Port: "))
+        end_port = int(input(Fore.WHITE + "Enter End Port: "))
+        
+        if start_port < 1 or end_port > 65535 or start_port > end_port:
+            print(Fore.RED + "[!] Invalid port range! Ports must be between 1-65535.")
+            return
+        
+        scanner = PortScanner(target_ip, start_port, end_port)
+        scanner.run()
+    except ValueError:
+        print(Fore.RED + "[!] Ports must be numbers!")
+    except KeyboardInterrupt:
+        print(Fore.RED + "\n\n[!] Scan interrupted by user.")
+
+def subdomain_scanner_menu():
+    print(Fore.YELLOW + "\n=== Subdomain Enumeration ===")
+    domain = input(Fore.WHITE + "Enter Target Domain (e.g., google.com): ").strip()
+    
+    if not domain:
+        print(Fore.RED + "[!] Domain cannot be empty!")
+        return
+    
+    try:
+        scanner = SubdomainScanner(domain)
+        scanner.run()
+    except KeyboardInterrupt:
+        print(Fore.RED + "\n\n[!] Scan interrupted by user.")
+
+def main_menu():
+    while True:
+        print(Fore.CYAN + "\n=== Main Menu ===")
+        print(Fore.WHITE + "[1] Advanced Port Scanner (with Banner Grabbing)")
+        print(Fore.WHITE + "[2] Subdomain Enum (Basic)")
+        print(Fore.WHITE + "[3] Exit")
+        
+        choice = input(Fore.YELLOW + "\nSelect an option: ").strip()
+        
+        if choice == '1':
+            port_scanner_menu()
+        elif choice == '2':
+            subdomain_scanner_menu()
+        elif choice == '3':
+            print(Fore.GREEN + "\n[*] Exiting White Kernel Hunter. Stay safe!")
+            sys.exit(0)
+        else:
+            print(Fore.RED + "[!] Invalid choice! Please select 1, 2, or 3.")
+
+def main():
+    try:
+        display_banner()
+        main_menu()
+    except KeyboardInterrupt:
+        print(Fore.RED + "\n\n[!] Program interrupted by user. Exiting...")
+        sys.exit(0)
+    except Exception as e:
+        print(Fore.RED + f"\n[!] An error occurred: {str(e)}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
