@@ -46,7 +46,7 @@ def display_banner():
     print(banner)
 
 class PortScanner:
-    def __init__(self, target, start_port, end_port, threads=100):
+    def __init__(self, target, start_port=1, end_port=65535, threads=500):
         self.target = target
         self.start_port = start_port
         self.end_port = end_port
@@ -170,17 +170,9 @@ def port_scanner_menu():
         return
     
     try:
-        start_port = int(input(Fore.WHITE + "Enter Start Port: "))
-        end_port = int(input(Fore.WHITE + "Enter End Port: "))
-        
-        if start_port < 1 or end_port > 65535 or start_port > end_port:
-            print(Fore.RED + "[!] Invalid port range! Ports must be between 1-65535.")
-            return
-        
-        scanner = PortScanner(target_ip, start_port, end_port)
+        print(Fore.CYAN + "[*] Auto-scanning all ports (1-65535) with 500 threads...")
+        scanner = PortScanner(target_ip)
         scanner.run()
-    except ValueError:
-        print(Fore.RED + "[!] Ports must be numbers!")
     except KeyboardInterrupt:
         print(Fore.RED + "\n\n[!] Scan interrupted by user.")
 

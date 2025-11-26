@@ -7,7 +7,7 @@ White Kernel Hunter is a professional Python CLI network reconnaissance tool des
 
 ## Features
 - **Virtual Environment Detection:** Ensures the tool runs only in isolated environments for security
-- **Advanced Port Scanner:** Multi-threaded (100 threads) port scanning with service banner detection
+- **Advanced Port Scanner:** Multi-threaded (500 threads) full port scanning (1-65535) with service banner detection
 - **Banner Grabbing:** Identifies service versions and details on open ports
 - **Subdomain Enumeration:** Discovers active subdomains using common wordlists
 - **Professional CLI:** Styled with colorful ASCII banners and formatted output
@@ -33,6 +33,7 @@ The tool must be run inside a virtual environment. Upon launch, it displays an A
 3. **Exit** - Closes the application
 
 ## Recent Changes
+- 2025-11-26: Updated port scanner to auto-scan all ports (1-65535) with 500 threads for faster scanning
 - 2025-11-26: Initial project creation with all core features implemented
 
 ## Architecture Notes
