@@ -45,7 +45,7 @@ def display_banner():
 {Fore.CYAN}╔═══════════════════════════════════════════════╗
 ║             White Kernel Hunter               ║
 ║         Advanced Reconnaissance Tool          ║
-║             Leader: Babu & Mezushi            ║
+║             Leader: Mr Fin                    ║
 ╚═══════════════════════════════════════════════╝{Style.RESET_ALL}
 """
     print(banner)
